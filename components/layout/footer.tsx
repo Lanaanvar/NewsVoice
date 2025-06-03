@@ -5,7 +5,7 @@ export default function Footer() {
     <footer className="border-t py-6 md:py-8">
       <div className="container flex flex-col items-center justify-between gap-4 md:flex-row px-4">
         <p className="text-center text-sm text-muted-foreground md:text-left">
-          &copy; {new Date().getFullYear()} BoltBrief. All rights reserved.
+          &copy; {new Date().getFullYear()} NewsVoice. All rights reserved.
         </p>
         <nav className="flex gap-4 text-sm text-muted-foreground">
           <Link href="/about" className="hover:text-primary transition-colors">

@@ -27,7 +27,7 @@ export function VoiceChatWidget() {
     setTimeout(() => {
       const welcomeMessage = {
         id: Date.now().toString(),
-        content: "Hi there! I'm your BoltBrief assistant. Ask me about news, request more details on a story, or tell me your interests.",
+        content: "Hi there! I'm your NewsVoice assistant. Ask me about news, request more details on a story, or tell me your interests.",
         isUser: false,
         timestamp: new Date(),
       };
