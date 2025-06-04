@@ -12,6 +12,8 @@ import VoiceButton from "@/components/voice-button";
 import { mockNewsItems } from "@/lib/mock-data";
 import { useToast } from "@/hooks/use-toast";
 import { fetchFeaturedNews } from "@/lib/api";
+import Header from '@/components/layout/header';
+import Footer from '@/components/layout/footer';
 
 export default function Home() {
   const [activeNewsId, setActiveNewsId] = useState<string | null>(null);
@@ -76,7 +78,7 @@ export default function Home() {
   const recentNews = mockNewsItems.slice(1, 5);
 
   return (
-    <div className="container px-4 py-6 space-y-8 mb-16">
+    <><Header /><div className="container px-4 py-6 space-y-8 mb-16">
       <section className="space-y-2">
         <h1 className="text-3xl font-bold tracking-tight">Your Daily Brief</h1>
         <p className="text-muted-foreground">
@@ -141,12 +143,11 @@ export default function Home() {
                             let answerAudio = new Audio(answerAudioUrl);
                             answerAudio.play();
                             setIsPlaying(false); // UI: show play for news
+
                             // When answer finishes, resume previous news audio
                             answerAudio.onended = () => {
-                              if (
-                                interruptedAudio &&
-                                interruptedAudioTime !== null
-                              ) {
+                              if (interruptedAudio &&
+                                interruptedAudioTime !== null) {
                                 interruptedAudio.currentTime =
                                   interruptedAudioTime;
                                 interruptedAudio.play();
@@ -163,7 +164,7 @@ export default function Home() {
                     recognition.stop();
                     setIsRecording(false);
                   }
-                }}
+                } }
               >
                 {isRecording ? (
                   <MicOff className="h-5 w-5 text-red-500" />
@@ -176,8 +177,8 @@ export default function Home() {
             </div>
             <div className="flex items-center justify-between">
               {/* <h2 className="text-xl font-semibold tracking-tight">
-                Recent Updates
-              </h2> */}
+      Recent Updates
+    </h2> */}
               <div className="flex items-center ">
                 <p className="text-muted-foreground mr-2">
                   {featuredNews ? featuredNews.summary : ""}
@@ -208,7 +209,7 @@ export default function Home() {
                       handlePlayNews(featuredNews.audio_id?.toString() || "");
                     }
                   }
-                }}
+                } }
               >
                 {isPlaying ? (
                   <Pause className="h-4 w-4" />
@@ -262,6 +263,6 @@ export default function Home() {
 
       {/* Floating voice button */}
       <VoiceButton />
-    </div>
+    </div><Footer /></>
   );
 }
