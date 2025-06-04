@@ -8,10 +8,10 @@ export default function AudioCard() {
   const [audioUrl, setAudioUrl] = useState<string | null>(null);
   const [isPlaying, setIsPlaying] = useState(false);
   const [summary, setSummary] = useState<string>("");
-  const [displayedSummary, setDisplayedSummary] = useState<string>("");
   const [followupQuestions, setFollowupQuestions] = useState<string[]>([]);
   const [showFollowups, setShowFollowups] = useState(false);
   const [isRecording, setIsRecording] = useState(false);
+  const [isAnswerPlaying, setIsAnswerPlaying] = useState(false);
   const audioRef = useRef<HTMLAudioElement | null>(null);
   const [recognition, setRecognition] = useState<any>(null);
 
@@ -42,20 +42,6 @@ export default function AudioCard() {
       }
     }
   }, [audioUrl]);
-
-  // Animate summary word by word
-  useEffect(() => {
-    if (!summary) return;
-    setDisplayedSummary("");
-    const words = summary.split(" ");
-    let idx = 0;
-    const interval = setInterval(() => {
-      setDisplayedSummary((prev) => (prev ? prev + " " : "") + words[idx]);
-      idx++;
-      if (idx >= words.length) clearInterval(interval);
-    }, 350); // Adjust speed as needed
-    return () => clearInterval(interval);
-  }, [summary]);
 
   // Setup SpeechRecognition instance
   useEffect(() => {
@@ -112,7 +98,12 @@ export default function AudioCard() {
       if (result && result.answer) {
         const answerAudioUrl = `http://127.0.0.1:8000/${result.answer}`;
         let answerAudio = new Audio(answerAudioUrl);
+        setIsAnswerPlaying(true);
         answerAudio.play();
+        answerAudio.onended = () => {
+          setIsAnswerPlaying(false);
+          setShowFollowups(true); // Show followups after answer audio ends
+        };
       }
     } catch (err) {
       // Optionally handle error
@@ -124,6 +115,7 @@ export default function AudioCard() {
     if (!recognition) return;
     if (!isRecording) {
       setIsRecording(true);
+      setShowFollowups(false); // Hide followups when mic is pressed
       recognition.start();
       recognition.onresult = async (event: any) => {
         const transcript = event.results[0][0].transcript;
@@ -145,7 +137,12 @@ export default function AudioCard() {
             if (result && result.answer) {
               const answerAudioUrl = `http://127.0.0.1:8000/${result.answer}`;
               let answerAudio = new Audio(answerAudioUrl);
+              setIsAnswerPlaying(true);
               answerAudio.play();
+              answerAudio.onended = () => {
+                setIsAnswerPlaying(false);
+                setShowFollowups(true); // Show followups after answer audio ends
+              };
             }
           } catch (err) {
             // Optionally handle error
@@ -162,31 +159,61 @@ export default function AudioCard() {
 
   return (
     <div className="fixed inset-x-0 bottom-0 flex flex-col items-center z-20">
-      {summary && <AnimatedSummary summary={summary} />}
-      <Card className="relative w-full max-w-xs rounded-2xl shadow-xl bg-white/95 border-none z-10 mb-4">
-        <CardContent className="p-4 flex flex-col items-center font-inter">
-          <div className="w-full flex flex-col items-start mb-6">
-            <span className="text-sm font-semibold text-white/80 mb-1 font-inter">
-              What would you like to do today?
-            </span>
-            <h1 className="text-2xl md:text-3xl font-bold text-white leading-tight font-inter">
-              Type, talk, or share a photo
-            </h1>
-            {showFollowups && followupQuestions.length > 0 && (
-              <div className="mt-4 flex flex-col gap-2 w-full">
-                {followupQuestions.map((q, i) => (
-                  <button
-                    key={i}
-                    className="w-full rounded-lg bg-blue-600 hover:bg-blue-700 text-white py-2 px-4 font-medium transition-colors duration-150 shadow"
-                    onClick={() => handleFollowupClick(q)}
-                  >
-                    {q}
-                  </button>
-                ))}
+      {/* Move summary animation to the top with justified alignment */}
+      {summary && (
+        <div className="w-full flex justify-center mt-2 mb-2">
+          <div className="w-full max-w-3xl">
+            <AnimatedSummary
+              summary={summary}
+              isPlaying={isPlaying}
+              highlightColor="#fff"
+              className="mx-auto"
+            />
+          </div>
+        </div>
+      )}
+      <Card className="relative w-full max-w-xs rounded-2xl shadow-xl border-none z-10 mb-4" style={{ backgroundColor: '#1c1e20' }}>
+        <CardContent className="p-6 flex flex-col items-center font-inter gap-4">
+          {/* Enhanced animated wave for audio playing or recording */}
+          {(!showFollowups && (isPlaying || isRecording || isAnswerPlaying)) && (
+            <div className="flex justify-center items-center mb-3 h-10 w-full">
+              <div
+                className={`flex gap-2 max-w-[120px] w-fit mx-auto ${isRecording ? 'text-red-500' : 'text-blue-400'}`}
+                aria-label={isRecording ? 'Recording...' : 'Playing...'}
+              >
+                <span className={`block w-3 h-7 rounded-full bg-current animate-wave1 ${isRecording ? 'bg-red-500' : 'bg-blue-500'}`}></span>
+                <span className={`block w-3 h-5 rounded-full bg-current animate-wave2 ${isRecording ? 'bg-red-400' : 'bg-blue-400'}`}></span>
+                <span className={`block w-3 h-9 rounded-full bg-current animate-wave3 ${isRecording ? 'bg-red-300' : 'bg-blue-300'}`}></span>
+                <span className={`block w-3 h-6 rounded-full bg-current animate-wave4 ${isRecording ? 'bg-red-400' : 'bg-blue-400'}`}></span>
+                <span className={`block w-3 h-8 rounded-full bg-current animate-wave5 ${isRecording ? 'bg-red-500' : 'bg-blue-500'}`}></span>
               </div>
+            </div>
+          )}
+          <div className="w-full flex flex-col items-start mb-6">
+            {showFollowups && followupQuestions.length > 0 && (
+              <>
+                <span className="text-sm font-semibold text-white/80 mb-1 font-inter">
+                  What would you like to ask today?
+                </span>
+
+                <h1 className="text-xl font-bold text-white leading-tight font-inter">
+                  Tap the mic or questions
+                </h1>
+                <div className="mt-4 flex flex-col gap-2 w-full">
+                  {followupQuestions.map((q, i) => (
+                    <button
+                      key={i}
+                      className="w-full rounded-lg bg-blue-600 hover:bg-blue-700 text-white py-2 px-4 font-medium transition-colors duration-150 shadow"
+                      onClick={() => handleFollowupClick(q)}
+                    >
+                      {q}
+                    </button>
+                  ))}
+                </div>
+              </>
             )}
           </div>
-          <div className="flex items-center space-x-3 mt-2">
+          <div className="flex items-center space-x-3">
             <Button
               size="icon"
               className={`bg-blue-500 hover:bg-blue-600 text-white shadow-lg rounded-full w-12 h-12 border-2 border-white/80 z-10 ${
