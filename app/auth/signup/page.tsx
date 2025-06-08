@@ -1,55 +1,159 @@
 "use client";
 
-import { useState } from "react";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
 import { Card, CardContent } from "@/components/ui/card";
-import Link from "next/link";
+import { doSignInWithGoogle } from "@/lib/auth";
+import { useState, useEffect } from "react";
+import { useRouter } from "next/navigation";
+import { useAuth } from "@/lib/context/auth-context";
 
 export default function SignupPage() {
-  const [email, setEmail] = useState("");
-  const [password, setPassword] = useState("");
-  const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
+  const [isSigningIn, setIsSigningIn] = useState(false);
+  const router = useRouter();
+  const auth = useAuth();
+  
+  const userLoggedIn = auth?.userLoggedIn;
+  const loading = auth?.loading;
 
-  const handleSignup = async (e: React.FormEvent) => {
+  console.log("SignupPage render:", { userLoggedIn, loading, isSigningIn });
+
+  // Redirect when user is logged in and not currently signing in
+  useEffect(() => {
+    console.log("Redirect useEffect:", { userLoggedIn, loading, isSigningIn });
+    
+    if (userLoggedIn && !loading) {
+      console.log("User is logged in and not loading - redirecting to homepage");
+      router.push("/");
+    }
+  }, [userLoggedIn, loading, router]);
+
+  const onGoogleSignIn = async (e: React.MouseEvent<HTMLButtonElement>) => {
     e.preventDefault();
-    setLoading(true);
+    if (isSigningIn) return;
+    
+    setIsSigningIn(true);
     setError("");
-    // TODO: Implement signup logic (API call)
-    setTimeout(() => {
-      setLoading(false);
-      // Redirect or show success
-    }, 1000);
+
+    try {
+      console.log("🚀 Starting Google sign-in...");
+      const { user, idToken } = await doSignInWithGoogle();
+      // const deviceToken = await getDeviceToken();
+      const deviceToken = "mock-device-token";
+
+
+      // Prepare payload
+      const payload = {
+        display_name: user.displayName,
+        email: user.email,
+        photo_url: user.photoURL,
+        device_token: "optional-device-token", // you can handle this later
+      };
+
+      // Call your backend
+      const response = await fetch("http://localhost:8000/user/register", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "Authorization": `Bearer ${idToken}`, // optional but secure
+        },
+        body: JSON.stringify(payload),
+      });
+
+      const data = await response.json();
+
+      console.log("ID Token:", await user.getIdToken());
+      // console.log("Access Token:", user.accessToken()); // or from _tokenResponse.oauthAccessToken
+
+      if (!response.ok) throw new Error(data.message || "Registration failed");
+
+      console.log("User registered successfully:", data);
+
+      router.push("/");
+
+      } catch (err: any) {
+        console.error("Google sign-in failed:", err);
+        setError(err.message || "Google sign-up failed");
+        setIsSigningIn(false);
+      }
+
+    
+    // try {
+    //   console.log("Starting Google sign-in...");
+    //   const result = await doSignInWithGoogle();
+    //   console.log("Google sign-in success:", result);
+      
+    //   // The auth context should update automatically
+    //   // But add a backup redirect just in case
+    //   setTimeout(() => {
+    //     console.log("Backup check - userLoggedIn:", userLoggedIn);
+    //     if (!userLoggedIn) {
+    //       console.log("Backup redirect triggered");
+    //       router.push("/");
+    //     }
+    //     setIsSigningIn(false);
+    //   }, 3000);
+      
+    // } catch (err: any) {
+    //   console.error("Google sign-in failed:", err);
+    //   setError(err.message || "Google sign-up failed");
+    //   setIsSigningIn(false);
+    // }
   };
+
+  // Show loading while auth is initializing
+  if (loading) {
+    return (
+      <div className="flex min-h-screen items-center justify-center bg-muted">
+        <div className="text-center">
+          <p>Loading...</p>
+        </div>
+      </div>
+    );
+  }
+
+  // Don't show signup form if user is already logged in
+  if (userLoggedIn) {
+    return (
+      <div className="flex min-h-screen items-center justify-center bg-muted">
+        <div className="text-center">
+          <p>Redirecting to homepage...</p>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="flex min-h-screen items-center justify-center bg-muted">
       <Card className="w-full max-w-md">
         <CardContent className="p-8">
           <h2 className="text-2xl font-bold mb-6 text-center">Sign Up</h2>
-          <form onSubmit={handleSignup} className="space-y-4">
-            <Input
-              type="email"
-              placeholder="Email"
-              value={email}
-              onChange={e => setEmail(e.target.value)}
-              required
-            />
-            <Input
-              type="password"
-              placeholder="Password"
-              value={password}
-              onChange={e => setPassword(e.target.value)}
-              required
-            />
-            {error && <div className="text-red-500 text-sm">{error}</div>}
-            <Button type="submit" className="w-full" disabled={loading}>
-              {loading ? "Signing up..." : "Sign Up"}
-            </Button>
-          </form>
+          
+          {error && (
+            <div className="text-red-500 text-sm mb-4 p-2 bg-red-50 rounded">
+              {error}
+            </div>
+          )}
+          
+          <Button
+            onClick={onGoogleSignIn}
+            className="w-full mb-4"
+            disabled={isSigningIn}
+            variant="outline"
+          >
+            {isSigningIn ? "Signing up..." : "Sign up with Google"}
+          </Button>
+          
           <div className="mt-4 text-center text-sm">
-            Already have an account? <Link href="/auth/login" className="underline">Log in</Link>
+            Already have an account?{" "}
+            <Button
+              variant="link"
+              className="underline p-0 h-auto min-h-0"
+              onClick={() => router.push("/auth/login")}
+              disabled={isSigningIn}
+            >
+              Log in
+            </Button>
           </div>
         </CardContent>
       </Card>

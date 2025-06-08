@@ -1,5 +1,6 @@
 import './globals.css';
 import type { Metadata } from 'next';
+import { AuthProvider } from '@/lib/context/auth-context';
 import { Inter } from 'next/font/google';
 import { ThemeProvider } from '@/components/theme-provider';
 import Header from '@/components/layout/header';
@@ -21,6 +22,8 @@ export default function RootLayout({
   return (
     <html lang="en" suppressHydrationWarning>
       <body className={inter.className}>
+        <AuthProvider>
+          
         <ThemeProvider
           attribute="class"
           defaultTheme="dark"
@@ -34,6 +37,7 @@ export default function RootLayout({
           </div>
           <Toaster />
         </ThemeProvider>
+        </AuthProvider>
       </body>
     </html>
   );
