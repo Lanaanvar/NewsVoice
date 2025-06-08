@@ -12,10 +12,27 @@ import VoiceButton from "@/components/voice-button";
 import { mockNewsItems } from "@/lib/mock-data";
 import { useToast } from "@/hooks/use-toast";
 import { fetchFeaturedNews } from "@/lib/api";
-import Header from '@/components/layout/header';
-import Footer from '@/components/layout/footer';
+import Header from "@/components/layout/header";
+import Footer from "@/components/layout/footer";
+import { useRouter } from "next/navigation";
+import { useAuth } from "@/lib/context/auth-context";
 
 export default function Home() {
+  const auth = useAuth();
+  // const userLoggedIn = auth?.userLoggedIn;
+  const router = useRouter();
+  const { userLoggedIn, loading } = useAuth() || {};
+
+  // useEffect(() => {
+  //   if (!loading && !userLoggedIn) {
+  //     router.replace('/auth/signup');
+  //   }
+  // }, [userLoggedIn, loading, router]);
+
+  // if (loading || !userLoggedIn) {
+  //   return <div>Loading...</div>;
+  // }
+
   const [activeNewsId, setActiveNewsId] = useState<string | null>(null);
   const [featuredNews, setFeaturedNews] = useState<any>(null);
   const { toast } = useToast();
@@ -63,6 +80,34 @@ export default function Home() {
     };
   }, [audio]);
 
+    useEffect(() => {
+    if (!loading && !userLoggedIn) {
+      console.log("User not authenticated, redirecting to signup");
+      router.replace('/auth/signup');
+    }
+  }, [userLoggedIn, loading, router]);
+
+  // ✅ NOW you can have conditional returns after all hooks
+  if (loading) {
+    return (
+      <div className="flex min-h-screen items-center justify-center">
+        <div className="text-center">
+          <p>Loading...</p>
+        </div>
+      </div>
+    );
+  }
+
+  if (!userLoggedIn) {
+    return (
+      <div className="flex min-h-screen items-center justify-center">
+        <div className="text-center">
+          <p>Redirecting to signup...</p>
+        </div>
+      </div>
+    );
+  }
+
   const handlePlayNews = (id: string) => {
     setActiveNewsId(id);
     const news = featuredNews && featuredNews.id === id ? featuredNews : null;
@@ -78,191 +123,199 @@ export default function Home() {
   const recentNews = mockNewsItems.slice(1, 5);
 
   return (
-    <><Header /><div className="container px-4 py-6 space-y-8 mb-16">
-      <section className="space-y-2">
-        <h1 className="text-3xl font-bold tracking-tight">Your Daily Brief</h1>
-        <p className="text-muted-foreground">
-          Top stories curated just for you
-        </p>
-      </section>
+    <>
+      <Header />
+      <div className="container px-4 py-6 space-y-8 mb-16">
+        <section className="space-y-2">
+          <h1 className="text-3xl font-bold tracking-tight">
+            Your Daily Brief
+          </h1>
+          <p className="text-muted-foreground">
+            Top stories curated just for you
+          </p>
+        </section>
 
-      {/* Featured news */}
-      <section className="relative overflow-hidden rounded-xl border border-muted bg-gradient-to-b from-muted/50 to-card">
-        <div className="relative z-10 p-6 md:p-8">
-          <div className="space-y-3 max-w-3xl">
-            {/* Recent Updates heading and summary inside the box */}
-            <div className="space-y-2 flex items-center">
-              <h2 className="text-2xl font-bold tracking-tight">
-                {featuredNews ? "Recent Updates" : "Loading..."}
-              </h2>
-              <Button
-                variant="outline"
-                className="ml-4"
-                size="icon"
-                disabled={!featuredNews || !recognition}
-                onClick={async () => {
-                  if (!recognition) return;
-                  if (!isRecording) {
-                    // If news audio is playing, pause and remember position
-                    if (audio && !audio.paused) {
-                      interruptedAudio = audio;
-                      interruptedAudioTime = audio.currentTime;
-                      audio.pause();
-                    } else {
-                      interruptedAudio = null;
-                      interruptedAudioTime = null;
-                    }
-                    setIsRecording(true);
-                    recognition.start();
-                    recognition.onresult = async (event: any) => {
-                      const transcript = event.results[0][0].transcript;
-                      const audioId = featuredNews?.audio_id;
-                      if (audioId && transcript) {
-                        const payload = {
-                          audio_id: audioId,
-                          question: transcript,
-                        };
-                        localStorage.setItem(
-                          "featured_question",
-                          JSON.stringify(payload)
-                        );
-                        // Send to API
-                        try {
-                          const res = await fetch(
-                            "http://127.0.0.1:8000/news/questions",
-                            {
-                              method: "POST",
-                              headers: { "Content-Type": "application/json" },
-                              body: JSON.stringify(payload),
-                            }
-                          );
-                          const result = await res.json();
-                          // Play the answer audio after getting the answer
-                          if (result && result.answer) {
-                            const answerAudioUrl = `http://127.0.0.1:8000/${result.answer}`;
-                            let answerAudio = new Audio(answerAudioUrl);
-                            answerAudio.play();
-                            setIsPlaying(false); // UI: show play for news
-
-                            // When answer finishes, resume previous news audio
-                            answerAudio.onended = () => {
-                              if (interruptedAudio &&
-                                interruptedAudioTime !== null) {
-                                interruptedAudio.currentTime =
-                                  interruptedAudioTime;
-                                interruptedAudio.play();
-                                setIsPlaying(true);
-                              }
-                            };
-                          }
-                        } catch (err) {
-                          // Optionally handle error (no alert)
-                        }
+        {/* Featured news */}
+        <section className="relative overflow-hidden rounded-xl border border-muted bg-gradient-to-b from-muted/50 to-card">
+          <div className="relative z-10 p-6 md:p-8">
+            <div className="space-y-3 max-w-3xl">
+              {/* Recent Updates heading and summary inside the box */}
+              <div className="space-y-2 flex items-center">
+                <h2 className="text-2xl font-bold tracking-tight">
+                  {featuredNews ? "Recent Updates" : "Loading..."}
+                </h2>
+                <Button
+                  variant="outline"
+                  className="ml-4"
+                  size="icon"
+                  disabled={!featuredNews || !recognition}
+                  onClick={async () => {
+                    if (!recognition) return;
+                    if (!isRecording) {
+                      // If news audio is playing, pause and remember position
+                      if (audio && !audio.paused) {
+                        interruptedAudio = audio;
+                        interruptedAudioTime = audio.currentTime;
+                        audio.pause();
+                      } else {
+                        interruptedAudio = null;
+                        interruptedAudioTime = null;
                       }
-                    };
-                  } else {
-                    recognition.stop();
-                    setIsRecording(false);
-                  }
-                } }
-              >
-                {isRecording ? (
-                  <MicOff className="h-5 w-5 text-red-500" />
-                ) : (
-                  <Mic className="h-5 w-5" />
-                )}
-              </Button>
-              {/* Mic button for voice question */}
-              {/* Button and summary moved below Recent Updates */}
-            </div>
-            <div className="flex items-center justify-between">
-              {/* <h2 className="text-xl font-semibold tracking-tight">
+                      setIsRecording(true);
+                      recognition.start();
+                      recognition.onresult = async (event: any) => {
+                        const transcript = event.results[0][0].transcript;
+                        const audioId = featuredNews?.audio_id;
+                        if (audioId && transcript) {
+                          const payload = {
+                            audio_id: audioId,
+                            question: transcript,
+                          };
+                          localStorage.setItem(
+                            "featured_question",
+                            JSON.stringify(payload)
+                          );
+                          // Send to API
+                          try {
+                            const res = await fetch(
+                              "http://127.0.0.1:8000/news/questions",
+                              {
+                                method: "POST",
+                                headers: { "Content-Type": "application/json" },
+                                body: JSON.stringify(payload),
+                              }
+                            );
+                            const result = await res.json();
+                            // Play the answer audio after getting the answer
+                            if (result && result.answer) {
+                              const answerAudioUrl = `http://127.0.0.1:8000/${result.answer}`;
+                              let answerAudio = new Audio(answerAudioUrl);
+                              answerAudio.play();
+                              setIsPlaying(false); // UI: show play for news
+
+                              // When answer finishes, resume previous news audio
+                              answerAudio.onended = () => {
+                                if (
+                                  interruptedAudio &&
+                                  interruptedAudioTime !== null
+                                ) {
+                                  interruptedAudio.currentTime =
+                                    interruptedAudioTime;
+                                  interruptedAudio.play();
+                                  setIsPlaying(true);
+                                }
+                              };
+                            }
+                          } catch (err) {
+                            // Optionally handle error (no alert)
+                          }
+                        }
+                      };
+                    } else {
+                      recognition.stop();
+                      setIsRecording(false);
+                    }
+                  }}
+                >
+                  {isRecording ? (
+                    <MicOff className="h-5 w-5 text-red-500" />
+                  ) : (
+                    <Mic className="h-5 w-5" />
+                  )}
+                </Button>
+                {/* Mic button for voice question */}
+                {/* Button and summary moved below Recent Updates */}
+              </div>
+              <div className="flex items-center justify-between">
+                {/* <h2 className="text-xl font-semibold tracking-tight">
       Recent Updates
     </h2> */}
-              <div className="flex items-center ">
-                <p className="text-muted-foreground mr-2">
-                  {featuredNews ? featuredNews.summary : ""}
-                </p>
+                <div className="flex items-center ">
+                  <p className="text-muted-foreground mr-2">
+                    {featuredNews ? featuredNews.summary : ""}
+                  </p>
+                </div>
               </div>
-            </div>
 
-            <div className="flex items-center space-x-2 pt-2">
-              <Button
-                className="gap-2"
-                disabled={!featuredNews}
-                onClick={() => {
-                  if (!featuredNews || !featuredNews.audio_file_path) return;
-                  const audioUrl = `http://127.0.0.1:8000/${featuredNews.audio_file_path}`;
-                  if (!audio) {
-                    const newAudio = new Audio(audioUrl);
-                    setAudio(newAudio);
-                    newAudio.play();
-                    setIsPlaying(true);
-                    handlePlayNews(featuredNews.audio_id?.toString() || "");
-                  } else {
-                    if (isPlaying) {
-                      audio.pause();
-                      setIsPlaying(false);
-                    } else {
-                      audio.play();
+              <div className="flex items-center space-x-2 pt-2">
+                <Button
+                  className="gap-2"
+                  disabled={!featuredNews}
+                  onClick={() => {
+                    if (!featuredNews || !featuredNews.audio_file_path) return;
+                    const audioUrl = `http://127.0.0.1:8000/${featuredNews.audio_file_path}`;
+                    if (!audio) {
+                      const newAudio = new Audio(audioUrl);
+                      setAudio(newAudio);
+                      newAudio.play();
                       setIsPlaying(true);
                       handlePlayNews(featuredNews.audio_id?.toString() || "");
+                    } else {
+                      if (isPlaying) {
+                        audio.pause();
+                        setIsPlaying(false);
+                      } else {
+                        audio.play();
+                        setIsPlaying(true);
+                        handlePlayNews(featuredNews.audio_id?.toString() || "");
+                      }
                     }
-                  }
-                } }
-              >
-                {isPlaying ? (
-                  <Pause className="h-4 w-4" />
-                ) : (
-                  <Play className="h-4 w-4" />
-                )}
-                {isPlaying ? "Pause Audio" : "Play Audio"}
-              </Button>
-              <Button variant="outline" size="icon" disabled={!featuredNews}>
-                <BookmarkPlus className="h-4 w-4" />
-              </Button>
-              <Button variant="outline" size="icon" disabled={!featuredNews}>
-                <Share2 className="h-4 w-4" />
-              </Button>
+                  }}
+                >
+                  {isPlaying ? (
+                    <Pause className="h-4 w-4" />
+                  ) : (
+                    <Play className="h-4 w-4" />
+                  )}
+                  {isPlaying ? "Pause Audio" : "Play Audio"}
+                </Button>
+                <Button variant="outline" size="icon" disabled={!featuredNews}>
+                  <BookmarkPlus className="h-4 w-4" />
+                </Button>
+                <Button variant="outline" size="icon" disabled={!featuredNews}>
+                  <Share2 className="h-4 w-4" />
+                </Button>
+              </div>
             </div>
           </div>
-        </div>
-      </section>
+        </section>
 
-      {/* Recent news */}
-      <section className="space-y-4">
-        <Tabs defaultValue="list" className="w-full">
-          <div className="flex items-center justify-between">
-            <TabsList>
-              <TabsTrigger value="list">List</TabsTrigger>
-              <TabsTrigger value="grid">Grid</TabsTrigger>
-            </TabsList>
-          </div>
+        {/* Recent news */}
+        <section className="space-y-4">
+          <Tabs defaultValue="list" className="w-full">
+            <div className="flex items-center justify-between">
+              <TabsList>
+                <TabsTrigger value="list">List</TabsTrigger>
+                <TabsTrigger value="grid">Grid</TabsTrigger>
+              </TabsList>
+            </div>
 
-          <TabsContent value="list" className="mt-4">
-            <NewsList newsItems={recentNews} onPlay={handlePlayNews} />
-          </TabsContent>
+            <TabsContent value="list" className="mt-4">
+              <NewsList newsItems={recentNews} onPlay={handlePlayNews} />
+            </TabsContent>
 
-          <TabsContent value="grid" className="mt-4">
-            <NewsGrid newsItems={recentNews} onPlay={handlePlayNews} />
-          </TabsContent>
-        </Tabs>
-      </section>
+            <TabsContent value="grid" className="mt-4">
+              <NewsGrid newsItems={recentNews} onPlay={handlePlayNews} />
+            </TabsContent>
+          </Tabs>
+        </section>
 
-      {/* Voice chat section */}
-      <section className="space-y-4 pt-4">
-        <h2 className="text-xl font-semibold tracking-tight">
-          Ask About The News
-        </h2>
-        <Card>
-          <CardContent className="p-0 overflow-hidden">
-            <VoiceChatWidget />
-          </CardContent>
-        </Card>
-      </section>
+        {/* Voice chat section */}
+        <section className="space-y-4 pt-4">
+          <h2 className="text-xl font-semibold tracking-tight">
+            Ask About The News
+          </h2>
+          <Card>
+            <CardContent className="p-0 overflow-hidden">
+              <VoiceChatWidget />
+            </CardContent>
+          </Card>
+        </section>
 
-      {/* Floating voice button */}
-      <VoiceButton />
-    </div><Footer /></>
+        {/* Floating voice button */}
+        <VoiceButton />
+      </div>
+      <Footer />
+    </>
   );
 }
