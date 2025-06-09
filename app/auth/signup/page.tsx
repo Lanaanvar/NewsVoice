@@ -12,7 +12,7 @@ export default function SignupPage() {
   const [isSigningIn, setIsSigningIn] = useState(false);
   const router = useRouter();
   const auth = useAuth();
-  
+
   const userLoggedIn = auth?.userLoggedIn;
   const loading = auth?.loading;
 
@@ -21,9 +21,11 @@ export default function SignupPage() {
   // Redirect when user is logged in and not currently signing in
   useEffect(() => {
     console.log("Redirect useEffect:", { userLoggedIn, loading, isSigningIn });
-    
+
     if (userLoggedIn && !loading) {
-      console.log("User is logged in and not loading - redirecting to homepage");
+      console.log(
+        "User is logged in and not loading - redirecting to homepage"
+      );
       router.push("/");
     }
   }, [userLoggedIn, loading, router]);
@@ -31,7 +33,7 @@ export default function SignupPage() {
   const onGoogleSignIn = async (e: React.MouseEvent<HTMLButtonElement>) => {
     e.preventDefault();
     if (isSigningIn) return;
-    
+
     setIsSigningIn(true);
     setError("");
 
@@ -41,13 +43,20 @@ export default function SignupPage() {
       // const deviceToken = await getDeviceToken();
       const deviceToken = "mock-device-token";
 
+      console.log("Google ID Token being sent:", idToken);
+      console.log(
+        "Google ID Token (first 100 chars):",
+        idToken?.substring(0, 100)
+      );
 
       // Prepare payload
       const payload = {
         display_name: user.displayName,
         email: user.email,
-        photo_url: user.photoURL,
-        device_token: "optional-device-token", // you can handle this later
+        country: "India", // replace or get dynamically
+        preferred_time: "08:30", // or get from UI
+        // photo_url: user.photoURL,
+        // device_token: "optional-device-token", // you can handle this later
       };
 
       // Call your backend
@@ -55,34 +64,46 @@ export default function SignupPage() {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
-          "Authorization": `Bearer ${idToken}`, // optional but secure
+          "Authorization": `Bearer ${idToken}`,
         },
         body: JSON.stringify(payload),
       });
 
-      const data = await response.json();
+      let data;
+      try {
+        data = await response.json();
+      } catch (jsonErr) {
+        data = {
+          message: "Failed to parse backend response",
+          raw: await response.text(),
+        };
+      }
+
+      console.log("Backend response status:", response.status);
+      console.log("Backend response body:", data);
 
       console.log("ID Token:", await user.getIdToken());
       // console.log("Access Token:", user.accessToken()); // or from _tokenResponse.oauthAccessToken
 
-      if (!response.ok) throw new Error(data.message || "Registration failed");
+      if (!response.ok)
+        throw new Error(
+          data.message || `Registration failed (status ${response.status})`
+        );
 
       console.log("User registered successfully:", data);
 
       router.push("/");
+    } catch (err: any) {
+      console.error("Google sign-in failed:", err);
+      setError(err.message || "Google sign-up failed");
+      setIsSigningIn(false);
+    }
 
-      } catch (err: any) {
-        console.error("Google sign-in failed:", err);
-        setError(err.message || "Google sign-up failed");
-        setIsSigningIn(false);
-      }
-
-    
     // try {
     //   console.log("Starting Google sign-in...");
     //   const result = await doSignInWithGoogle();
     //   console.log("Google sign-in success:", result);
-      
+
     //   // The auth context should update automatically
     //   // But add a backup redirect just in case
     //   setTimeout(() => {
@@ -93,7 +114,7 @@ export default function SignupPage() {
     //     }
     //     setIsSigningIn(false);
     //   }, 3000);
-      
+
     // } catch (err: any) {
     //   console.error("Google sign-in failed:", err);
     //   setError(err.message || "Google sign-up failed");
@@ -128,13 +149,13 @@ export default function SignupPage() {
       <Card className="w-full max-w-md">
         <CardContent className="p-8">
           <h2 className="text-2xl font-bold mb-6 text-center">Sign Up</h2>
-          
+
           {error && (
             <div className="text-red-500 text-sm mb-4 p-2 bg-red-50 rounded">
               {error}
             </div>
           )}
-          
+
           <Button
             onClick={onGoogleSignIn}
             className="w-full mb-4"
@@ -143,7 +164,7 @@ export default function SignupPage() {
           >
             {isSigningIn ? "Signing up..." : "Sign up with Google"}
           </Button>
-          
+
           <div className="mt-4 text-center text-sm">
             Already have an account?{" "}
             <Button
