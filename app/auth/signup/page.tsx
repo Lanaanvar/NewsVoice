@@ -3,9 +3,13 @@
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { doSignInWithGoogle } from "@/lib/auth";
+import { getDeviceToken } from "@/lib/device-token";
 import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { useAuth } from "@/lib/context/auth-context";
+
+// Import VAPID key from environment variable
+const VAPID_KEY = process.env.NEXT_PUBLIC_FIREBASE_VAPID_KEY!;
 
 export default function SignupPage() {
   const [error, setError] = useState("");
@@ -40,8 +44,37 @@ export default function SignupPage() {
     try {
       console.log("🚀 Starting Google sign-in...");
       const { user, idToken } = await doSignInWithGoogle();
-      // const deviceToken = await getDeviceToken();
-      const deviceToken = "mock-device-token";
+      // Get device token for push notifications
+      const deviceToken = await getDeviceToken(VAPID_KEY);
+      console.log("Device token:", deviceToken);
+
+      // Register device token with backend
+      if (deviceToken) {
+        try {
+          const notifRes = await fetch(
+            "http://localhost:8000/user/notification/register",
+            {
+              method: "POST",
+              headers: {
+                "Content-Type": "application/json",
+                Authorization: `Bearer ${idToken}`,
+              },
+              body: JSON.stringify({ device_token: deviceToken }),
+            }
+          );
+          const notifData = await notifRes.json().catch(() => ({}));
+          console.log("Notification API response status:", notifRes.status);
+          console.log("Notification API response body:", notifData);
+          if (!notifRes.ok) {
+            throw new Error(
+              notifData.message ||
+                `Notification registration failed (status ${notifRes.status})`
+            );
+          }
+        } catch (notifErr) {
+          console.error("Device token registration failed:", notifErr);
+        }
+      }
 
       console.log("Google ID Token being sent:", idToken);
       console.log(
@@ -64,7 +97,7 @@ export default function SignupPage() {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
-          "Authorization": `Bearer ${idToken}`,
+          Authorization: `Bearer ${idToken}`,
         },
         body: JSON.stringify(payload),
       });
@@ -92,7 +125,8 @@ export default function SignupPage() {
 
       console.log("User registered successfully:", data);
 
-      router.push("/");
+      // Redirect to onboarding after successful registration
+      router.push("/onboarding");
     } catch (err: any) {
       console.error("Google sign-in failed:", err);
       setError(err.message || "Google sign-up failed");
