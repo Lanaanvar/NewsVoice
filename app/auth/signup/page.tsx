@@ -25,14 +25,14 @@ export default function SignupPage() {
   // Redirect when user is logged in and not currently signing in
   useEffect(() => {
     console.log("Redirect useEffect:", { userLoggedIn, loading, isSigningIn });
-
-    if (userLoggedIn && !loading) {
+    // Only redirect to homepage if user is logged in, not loading, and not in the process of signing in
+    if (userLoggedIn && !loading && !isSigningIn) {
       console.log(
         "User is logged in and not loading - redirecting to homepage"
       );
       router.push("/");
     }
-  }, [userLoggedIn, loading, router]);
+  }, [userLoggedIn, loading, isSigningIn, router]);
 
   const onGoogleSignIn = async (e: React.MouseEvent<HTMLButtonElement>) => {
     e.preventDefault();
