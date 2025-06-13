@@ -3,8 +3,10 @@ import { Button } from "@/components/ui/button";
 import { Mic, Pause, Play } from "lucide-react";
 import React, { useEffect, useRef, useState } from "react";
 import AnimatedSummary from "@/components/audio/AnimatedSummary";
+import { useSearchParams } from "next/navigation";
 
 export default function AudioCard() {
+  const searchParams = useSearchParams();
   const [audioUrl, setAudioUrl] = useState<string | null>(null);
   const [isPlaying, setIsPlaying] = useState(false);
   const [summary, setSummary] = useState<string>("");
@@ -16,6 +18,13 @@ export default function AudioCard() {
   const [audioDuration, setAudioDuration] = useState<number>(0);
   const audioRef = useRef<HTMLAudioElement | null>(null);
   const [recognition, setRecognition] = useState<any>(null);
+  const [categoryId, setCategoryId] = useState<number | null>(null);
+
+  useEffect(() => {
+    // Get category from URL
+    const cat = searchParams.get("category");
+    setCategoryId(cat && /^\d+$/.test(cat) ? Number(cat) : null);
+  }, [searchParams]);
 
   useEffect(() => {
     const timer = setTimeout(() => {
@@ -34,8 +43,46 @@ export default function AudioCard() {
   }, []);
 
   useEffect(() => {
-    if (audioUrl && audioRef.current) {
-      // Remove autoPlay attribute from <audio> and always play programmatically
+    const fetchAndPlay = async () => {
+      let apiUrl = "";
+      let fetchOptions: RequestInit = {};
+      if (!categoryId) {
+        apiUrl = "http://localhost:8000/news/top_personalised_news";
+        try {
+          const { getAuth } = await import("firebase/auth");
+          const auth = getAuth();
+          const user = auth.currentUser;
+          if (user) {
+            const idToken = await user.getIdToken();
+            fetchOptions.headers = { Authorization: `Bearer ${idToken}` };
+          }
+        } catch (err) {
+          // Optionally handle error
+        }
+      } else {
+        apiUrl = `http://localhost:8000/news/category_news/${categoryId}`;
+      }
+      try {
+        const res = await fetch(apiUrl, fetchOptions);
+        const data = await res.json();
+        setAudioUrl(`http://127.0.0.1:8000/${data.audio_file_path}`);
+        setSummary(data.summary);
+        setFollowupQuestions(data.followup_questions || []);
+        if (data.audio_id) {
+          localStorage.setItem("featured_audio_id", data.audio_id.toString());
+        }
+        setIsPlaying(true);
+        setSummaryPaused(false);
+      } catch (err) {
+        // Optionally handle error
+      }
+    };
+    fetchAndPlay();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [categoryId]);
+
+  useEffect(() => {
+    if (audioUrl && audioRef.current && isPlaying) {
       const playPromise = audioRef.current.play();
       if (playPromise !== undefined) {
         playPromise
@@ -43,7 +90,7 @@ export default function AudioCard() {
           .catch(() => setIsPlaying(false));
       }
     }
-  }, [audioUrl]);
+  }, [audioUrl, isPlaying]);
 
   // Setup SpeechRecognition instance
   useEffect(() => {
@@ -72,12 +119,42 @@ export default function AudioCard() {
   const handlePlay = () => {
     if (audioRef.current) {
       audioRef.current.play();
-      setIsPlaying(true);
-      setSummaryPaused(false);
+      apiUrl = "http://localhost:8000/news/top_personalised_news";
+      // Use Firebase getIdToken for the current user
+      try {
+        const { getAuth } = await import("firebase/auth");
+        const auth = getAuth();
+        const user = auth.currentUser;
+        if (user) {
+          const idToken = await user.getIdToken();
+          fetchOptions.headers = { Authorization: `Bearer ${idToken}` };
+        }
+      } catch (err) {
+        // Optionally handle error
+      }
+    } else {
+      apiUrl = `http://localhost:8000/news/category_news/${categoryId}`;
+    }
+    try {
+      const res = await fetch(apiUrl, fetchOptions);
+      const data = await res.json();
+      setAudioUrl(`http://127.0.0.1:8000/${data.audio_file_path}`);
+      setSummary(data.summary);
+      setFollowupQuestions(data.followup_questions || []);
+      if (data.audio_id) {
+        localStorage.setItem("featured_audio_id", data.audio_id.toString());
+      }
+      if (audioRef.current) {
+        audioRef.current.play();
+        setIsPlaying(true);
+        setSummaryPaused(false);
+      }
+    } catch (err) {
+      // Optionally handle error
+>>>>>>> d97c33bdf4944c95d134f2f370bd78127dc4d197
     }
   };
 
-  // Show followup questions after audio ends
   const handleAudioEnded = () => {
     setShowFollowups(true);
   };
@@ -279,6 +356,17 @@ export default function AudioCard() {
                   )}
                 </Button>
               </>
+            )}
+            {/* Show Play button if no audioUrl yet */}
+            {!audioUrl && (
+              <Button
+                size="icon"
+                className="bg-white/90 hover:bg-white text-black shadow-lg rounded-full w-10 h-10 border border-white/80 z-10"
+                onClick={handlePlay}
+                aria-label="Play audio"
+              >
+                <Play className="w-5 h-5" />
+              </Button>
             )}
           </div>
         </CardContent>
