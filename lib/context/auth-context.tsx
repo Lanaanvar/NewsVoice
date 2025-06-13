@@ -38,7 +38,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     console.log("Auth state changed - initializeUser called with:", user);
     console.log("User UID:", user?.uid);
     console.log("User email:", user?.email);
-
+    
     if (user) {
       setCurrentUser(user);
       setUserLoggedIn(true);
